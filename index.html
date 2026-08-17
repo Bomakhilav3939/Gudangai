@@ -503,11 +503,28 @@
             SKU / Barcode
           </label>
 
-          <input
-            id="manual-sku"
-            type="text"
-            class="mt-1 w-full px-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 outline-none"
-          >
+          <div class="flex gap-2 mt-1">
+            <input
+              id="manual-sku"
+              type="text"
+              autocomplete="off"
+              class="flex-1 w-full px-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 outline-none"
+            >
+
+            <button
+              type="button"
+              onclick="openManualBarcodeScanner()"
+              class="shrink-0 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1 shadow-sm"
+              title="Scan barcode"
+            >
+              <span class="material-symbols-outlined text-base">qr_code_scanner</span>
+              Scan
+            </button>
+          </div>
+
+          <p class="text-[10px] text-slate-500 mt-1">
+            Scan barcode untuk mengisi nama, kategori, dan harga otomatis.
+          </p>
         </div>
 
         <div>
@@ -812,6 +829,7 @@ const STORAGE_KEY_THEME = 'gudangai_theme';
 let categoryChartInstance = null;
 let html5QrCode = null;
 let currentData = null;
+let barcodeScanTarget = 'general';
 
 
 /* =========================================================
@@ -1391,9 +1409,32 @@ async function stopBarcodeScanner() {
 }
 
 
+function openManualBarcodeScanner() {
+
+  barcodeScanTarget = 'manual';
+  switchView('scan');
+
+  setTimeout(() => {
+    startBarcodeScanner();
+  }, 100);
+}
+
+
 async function onBarcodeScanSuccess(decodedText) {
 
   await stopBarcodeScanner();
+
+  const sku = String(decodedText || '').trim();
+
+  if (!sku) {
+    showToast('Barcode tidak terbaca');
+    return;
+  }
+
+  if (barcodeScanTarget === 'manual') {
+    await lookupBarcodeForManual(sku);
+    return;
+  }
 
   showLoading(true, 'Memproses barcode...');
 
@@ -1403,7 +1444,7 @@ async function onBarcodeScanSuccess(decodedText) {
       await apiPost(
         {
           action: 'BARCODE_SCAN',
-          sku: decodedText
+          sku
         }
       );
 
@@ -1428,6 +1469,96 @@ async function onBarcodeScanSuccess(decodedText) {
     showToast(
       'Barcode: ' + error.message
     );
+
+  } finally {
+
+    barcodeScanTarget = 'general';
+    showLoading(false);
+  }
+}
+
+
+async function lookupBarcodeForManual(sku) {
+
+  showLoading(true, 'Mencari data barang...');
+
+  try {
+
+    const result =
+      await apiPost(
+        {
+          action: 'BARCODE_LOOKUP',
+          sku
+        }
+      );
+
+    if (!result || result.status !== 'success') {
+      throw new Error(
+        result && result.message
+          ? result.message
+          : 'Data barcode tidak ditemukan'
+      );
+    }
+
+    const data = result.data || result.item || result.product || {};
+
+    const name =
+      data.name ?? data.nama ?? data.Nama ?? '';
+
+    const category =
+      data.category ?? data.kategori ?? data.Kategori ?? '';
+
+    const price =
+      data.price ?? data.harga ?? data.Harga ?? 0;
+
+    const minStock =
+      data.minStock ??
+      data.minimumStock ??
+      data.min_stock ??
+      data.batasMinimumStok;
+
+    document.getElementById('manual-sku').value =
+      String(data.sku ?? data.SKU ?? data.barcode ?? sku);
+
+    document.getElementById('manual-name').value =
+      String(name);
+
+    document.getElementById('manual-cat').value =
+      String(category);
+
+    document.getElementById('manual-price').value =
+      Number(price) || 0;
+
+    if (minStock !== undefined && minStock !== null && minStock !== '') {
+      document.getElementById('manual-min-stock').value =
+        Number(minStock) || 0;
+    }
+
+    if (!name) {
+      throw new Error('Data nama barang kosong');
+    }
+
+    barcodeScanTarget = 'general';
+    switchView('manual');
+
+    const qtyInput = document.getElementById('manual-qty');
+    if (qtyInput) {
+      qtyInput.focus();
+      qtyInput.select();
+    }
+
+    showToast('Barang ditemukan. Isi jumlah restok lalu simpan.');
+
+  } catch (error) {
+
+    console.error(error);
+
+    barcodeScanTarget = 'general';
+    switchView('manual');
+
+    document.getElementById('manual-sku').value = sku;
+
+    showToast('Barcode belum terdaftar: ' + error.message);
 
   } finally {
 
