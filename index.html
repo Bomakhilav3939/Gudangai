@@ -1,0 +1,1908 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  <title>GudangAu - Inventory & Finance</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            gudang: {
+              50: '#ecfdf5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+  >
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+    }
+
+    #barcode-reader video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      border-radius: 1rem;
+    }
+
+    #barcode-reader__scan_region {
+      border: none !important;
+    }
+
+    #barcode-reader__dashboard {
+      display: none !important;
+    }
+
+    input,
+    button {
+      font-family: inherit;
+    }
+
+    .safe-bottom {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .safe-top {
+      padding-top: env(safe-area-inset-top);
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 dark:bg-[#0B132B] text-slate-900 dark:text-slate-100 min-h-screen pb-24">
+
+  <!-- LOADING -->
+  <div
+    id="loading-overlay"
+    class="hidden fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm items-center justify-center"
+  >
+    <div class="bg-white dark:bg-[#111C44] rounded-2xl p-6 shadow-2xl text-center mx-6">
+      <div class="animate-spin rounded-full h-10 w-10 border-4 border-slate-200 border-t-emerald-500 mx-auto mb-4"></div>
+      <p id="loading-text" class="text-sm font-semibold">
+        Menghubungkan...
+      </p>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header
+    class="sticky top-0 z-40 bg-white/90 dark:bg-[#0B132B]/90 backdrop-blur border-b border-slate-200 dark:border-slate-800"
+  >
+    <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-emerald-500 text-2xl">
+          inventory_2
+        </span>
+
+        <div>
+          <h1 class="text-lg font-extrabold tracking-tight">
+            GudangAi
+          </h1>
+
+          <p
+            id="connection-label"
+            class="text-[9px] text-slate-500 dark:text-slate-400"
+          >
+            Belum terhubung
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1">
+
+        <button
+          onclick="toggleDarkMode()"
+          class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800"
+          title="Tema"
+        >
+          <span class="material-symbols-outlined">
+            dark_mode
+          </span>
+        </button>
+
+        <button
+          onclick="loadRealDataFromSheets()"
+          class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800"
+          title="Refresh"
+        >
+          <span class="material-symbols-outlined">
+            refresh
+          </span>
+        </button>
+
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-md w-full mx-auto px-4 py-5">
+
+    <!-- DASHBOARD -->
+    <section id="view-dashboard" class="space-y-5">
+
+      <div>
+        <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">
+          Overview
+        </p>
+
+        <h2 class="text-2xl font-extrabold mt-1">
+          Inventory & Finance
+        </h2>
+      </div>
+
+      <!-- SCAN BUTTON -->
+      <button
+        onclick="switchView('scan')"
+        class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-2xl shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition"
+      >
+        <span class="material-symbols-outlined">
+          qr_code_scanner
+        </span>
+
+        Scan Barcode / OCR Struk
+      </button>
+
+      <!-- TOTAL -->
+      <div
+        class="p-5 rounded-2xl bg-white dark:bg-[#111C44] border border-slate-200 dark:border-slate-800 shadow-sm"
+      >
+        <div class="flex items-center justify-between">
+
+          <div>
+            <p class="text-[10px] uppercase font-bold text-slate-500">
+              Nilai Persediaan
+            </p>
+
+            <h3
+              id="dash-total-value"
+              class="text-2xl font-extrabold mt-1"
+            >
+              Rp 0
+            </h3>
+
+            <p
+              id="dash-balance"
+              class="text-xs text-emerald-500 font-semibold mt-1"
+            >
+              Saldo Rp 0
+            </p>
+          </div>
+
+          <div
+            class="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600"
+          >
+            <span class="material-symbols-outlined text-3xl">
+              account_balance_wallet
+            </span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- METRICS -->
+      <div class="grid grid-cols-2 gap-3">
+
+        <div
+          class="p-4 rounded-2xl bg-white dark:bg-[#111C44] border border-slate-200 dark:border-slate-800"
+        >
+          <div class="flex justify-between">
+            <p class="text-[10px] uppercase font-bold text-slate-500">
+              Total Unit
+            </p>
+
+            <span class="material-symbols-outlined text-emerald-500">
+              inventory
+            </span>
+          </div>
+
+          <h3
+            id="dash-in-stock"
+            class="text-xl font-extrabold mt-2"
+          >
+            0
+          </h3>
+
+          <p class="text-[10px] text-slate-500 mt-1">
+            Barang tersedia
+          </p>
+        </div>
+
+        <div
+          class="p-4 rounded-2xl bg-white dark:bg-[#111C44] border border-slate-200 dark:border-slate-800"
+        >
+          <div class="flex justify-between">
+            <p class="text-[10px] uppercase font-bold text-slate-500">
+              Stok Menipis
+            </p>
+
+            <span class="material-symbols-outlined text-amber-500">
+              warning
+            </span>
+          </div>
+
+          <h3
+            id="dash-critical-stock"
+            class="text-xl font-extrabold mt-2 text-amber-500"
+          >
+            0
+          </h3>
+
+          <p class="text-[10px] text-amber-500 mt-1">
+            Perlu restock
+          </p>
+        </div>
+
+      </div>
+
+      <!-- FINANCE -->
+      <div class="grid grid-cols-2 gap-3">
+
+        <div
+          class="p-4 rounded-2xl bg-white dark:bg-[#111C44] border border-slate-200 dark:border-slate-800"
+        >
+          <p class="text-[10px] uppercase font-bold text-slate-500">
+            Pemasukan
+          </p>
+
+          <h3
+            id="dash-income"
+            class="text-base font-extrabold text-emerald-500 mt-2"
+          >
+            Rp 0
+          </h3>
+        </div>
+
+        <div
+          class="p-4 rounded-2xl bg-white dark:bg-[#111C44] border border-slate-200 dark:border-slate-800"
+        >
+          <p class="text-[10px] uppercase font-bold text-slate-500">
+            Pengeluaran
+          </p>
+
+          <h3
+            id="dash-expense"
+            class="text-base font-extrabold text-red-500 mt-2"
+          >
+            Rp 0
+          </h3>
+        </div>
+
+      </div>
+
+      <!-- CATEGORY -->
+      <div
+        class="p-5 rounded-2xl bg-white dark:bg-[#111C44] border border-slate-200 dark:border-slate-800 shadow-sm"
+      >
+
+        <h3 class="font-bold text-sm mb-4">
+          Sebaran Kategori
+        </h3>
+
+        <div class="relative h-48">
+          <canvas id="categoryChart"></canvas>
+
+          <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+
+            <span
+              id="dash-cat-count"
+              class="text-xl font-extrabold"
+            >
+              0
+            </span>
+
+            <span class="text-[9px] uppercase font-bold text-slate-500">
+              Kategori
+            </span>
+
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- SCANNER -->
+    <section id="view-scan" class="hidden space-y-4">
+
+      <div class="flex items-center justify-between">
+
+        <button
+          onclick="switchView('dashboard')"
+          class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800"
+        >
+          <span class="material-symbols-outlined">
+            arrow_back
+          </span>
+        </button>
+
+        <h2 class="font-bold">
+          Scanner
+        </h2>
+
+        <div class="w-10"></div>
+
+      </div>
+
+      <input
+        type="file"
+        id="ocr-file-input"
+        accept="image/*"
+        class="hidden"
+        onchange="processOCRReceipt(event)"
+      >
+
+      <div
+        class="relative h-72 bg-slate-950 rounded-2xl overflow-hidden"
+      >
+
+        <div
+          id="barcode-reader"
+          class="w-full h-full"
+        ></div>
+
+        <div
+          id="camera-placeholder"
+          class="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center text-center p-5"
+        >
+
+          <span class="material-symbols-outlined text-5xl text-emerald-500">
+            photo_camera
+          </span>
+
+          <p class="font-bold text-white mt-3">
+            Kamera belum aktif
+          </p>
+
+          <p class="text-xs text-slate-400 mt-1 mb-5">
+            Gunakan kamera untuk membaca barcode.
+          </p>
+
+          <button
+            onclick="startBarcodeScanner()"
+            class="px-5 py-3 bg-emerald-600 text-white rounded-xl font-bold text-xs"
+          >
+            Buka Kamera
+          </button>
+
+        </div>
+
+        <div
+          id="ocr-overlay"
+          class="hidden absolute inset-0 bg-slate-950/95 z-10 flex flex-col items-center justify-center"
+        >
+
+          <div
+            class="animate-spin rounded-full h-10 w-10 border-4 border-slate-700 border-t-emerald-500 mb-4"
+          ></div>
+
+          <p
+            id="ocr-status-text"
+            class="text-xs text-white font-semibold"
+          >
+            Menganalisis struk...
+          </p>
+
+        </div>
+
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+
+        <button
+          onclick="startBarcodeScanner()"
+          class="py-3 bg-emerald-600 text-white rounded-xl font-bold text-xs"
+        >
+          <span class="material-symbols-outlined text-sm align-middle">
+            center_focus_weak
+          </span>
+          Scan Barcode
+        </button>
+
+        <button
+          onclick="document.getElementById('ocr-file-input').click()"
+          class="py-3 bg-cyan-600 text-white rounded-xl font-bold text-xs"
+        >
+          <span class="material-symbols-outlined text-sm align-middle">
+            receipt_long
+          </span>
+          OCR Struk
+        </button>
+
+      </div>
+
+      <button
+        onclick="switchView('manual')"
+        class="w-full py-3 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-xs"
+      >
+        Tambah Barang Manual
+      </button>
+
+    </section>
+
+    <!-- MANUAL -->
+    <section id="view-manual" class="hidden space-y-5">
+
+      <div class="flex items-center gap-3">
+
+        <button
+          onclick="switchView('dashboard')"
+          class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800"
+        >
+          <span class="material-symbols-outlined">
+            arrow_back
+          </span>
+        </button>
+
+        <div>
+          <h2 class="text-lg font-extrabold">
+            Tambah Barang
+          </h2>
+
+          <p class="text-xs text-slate-500">
+            Data disimpan ke Google Sheets.
+          </p>
+        </div>
+
+      </div>
+
+      <form
+        onsubmit="handleManualSubmit(event)"
+        class="p-5 rounded-2xl bg-white dark:bg-[#111C44] border border-slate-200 dark:border-slate-800 space-y-4"
+      >
+
+        <div>
+          <label class="text-xs font-bold">
+            Nama Barang *
+          </label>
+
+          <input
+            id="manual-name"
+            required
+            type="text"
+            class="mt-1 w-full px-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 outline-none"
+          >
+        </div>
+
+        <div>
+          <label class="text-xs font-bold">
+            SKU / Barcode
+          </label>
+
+          <input
+            id="manual-sku"
+            type="text"
+            class="mt-1 w-full px-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 outline-none"
+          >
+        </div>
+
+        <div>
+          <label class="text-xs font-bold">
+            Kategori
+          </label>
+
+          <input
+            id="manual-cat"
+            type="text"
+            class="mt-1 w-full px-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 outline-none"
+          >
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+
+          <div>
+            <label class="text-xs font-bold">
+              Jumlah *
+            </label>
+
+            <input
+              id="manual-qty"
+              type="number"
+              min="1"
+              value="1"
+              required
+              class="mt-1 w-full px-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 outline-none"
+            >
+          </div>
+
+          <div>
+            <label class="text-xs font-bold">
+              Harga Satuan
+            </label>
+
+            <input
+              id="manual-price"
+              type="number"
+              min="0"
+              value="0"
+              class="mt-1 w-full px-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 outline-none"
+            >
+          </div>
+
+        </div>
+
+        <div>
+          <label class="text-xs font-bold">
+            Batas Minimum Stok
+          </label>
+
+          <input
+            id="manual-min-stock"
+            type="number"
+            min="0"
+            value="5"
+            class="mt-1 w-full px-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 outline-none"
+          >
+        </div>
+
+        <button
+          type="submit"
+          class="w-full py-3.5 bg-emerald-600 text-white rounded-xl font-bold"
+        >
+          Simpan Barang
+        </button>
+
+      </form>
+
+    </section>
+
+    <!-- HISTORY -->
+    <section id="view-history" class="hidden space-y-4">
+
+      <div class="flex items-center justify-between">
+
+        <div>
+          <h2 class="text-xl font-extrabold">
+            Riwayat
+          </h2>
+
+          <p class="text-xs text-slate-500">
+            Pemasukan dan pengeluaran.
+          </p>
+        </div>
+
+        <button
+          onclick="switchView('manual')"
+          class="px-3 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold"
+        >
+          + Barang
+        </button>
+
+      </div>
+
+      <div
+        id="history-container"
+        class="space-y-2"
+      ></div>
+
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="hidden space-y-5">
+
+      <div>
+        <h2 class="text-xl font-extrabold">
+          Pengaturan
+        </h2>
+
+        <p class="text-xs text-slate-500">
+          Hubungkan aplikasi dengan Google Sheets.
+        </p>
+      </div>
+
+      <!-- GAS URL -->
+      <div
+        class="p-5 rounded-2xl bg-white dark:bg-[#111C44] border border-slate-200 dark:border-slate-800"
+      >
+
+        <h3 class="font-bold text-sm">
+          Google Apps Script
+        </h3>
+
+        <p class="text-[10px] text-slate-500 mt-1 mb-3">
+          Masukkan URL Web App Google Apps Script.
+        </p>
+
+        <input
+          id="gas-url-input"
+          type="url"
+          placeholder="https://script.google.com/macros/s/.../exec"
+          class="w-full px-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs outline-none"
+        >
+
+        <button
+          onclick="saveGasUrl()"
+          class="w-full mt-3 py-3 bg-emerald-600 text-white rounded-xl text-xs font-bold"
+        >
+          Simpan & Hubungkan
+        </button>
+
+        <button
+          onclick="testConnection()"
+          class="w-full mt-2 py-3 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold"
+        >
+          Test Koneksi
+        </button>
+
+      </div>
+
+      <!-- FONNTE STATUS -->
+      <div
+        class="p-5 rounded-2xl bg-white dark:bg-[#111C44] border border-slate-200 dark:border-slate-800"
+      >
+
+        <div class="flex items-center justify-between">
+
+          <div>
+            <h3 class="font-bold text-sm">
+              Notifikasi WhatsApp
+            </h3>
+
+            <p class="text-[10px] text-slate-500 mt-1">
+              Fonnte dikonfigurasi dari Google Sheets.
+            </p>
+          </div>
+
+          <span
+            id="fonnte-status"
+            class="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800"
+          >
+            Belum diketahui
+          </span>
+
+        </div>
+
+        <button
+          onclick="testFonnte()"
+          class="w-full mt-4 py-3 bg-green-600 text-white rounded-xl text-xs font-bold"
+        >
+          Test WhatsApp
+        </button>
+
+      </div>
+
+      <!-- THEME -->
+      <div
+        class="p-5 rounded-2xl bg-white dark:bg-[#111C44] border border-slate-200 dark:border-slate-800 flex items-center justify-between"
+      >
+
+        <div>
+          <h3 class="font-bold text-sm">
+            Dark Mode
+          </h3>
+
+          <p class="text-[10px] text-slate-500">
+            Tampilan gelap aplikasi.
+          </p>
+        </div>
+
+        <input
+          type="checkbox"
+          id="theme-toggle"
+          onchange="toggleDarkMode()"
+          class="w-5 h-5 accent-emerald-500"
+        >
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- NAVIGATION -->
+  <nav
+    class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 safe-bottom"
+  >
+
+    <div class="max-w-md mx-auto py-2 px-3 flex justify-around">
+
+      <button
+        id="nav-dashboard"
+        onclick="switchView('dashboard')"
+        class="flex flex-col items-center gap-1 text-emerald-500 px-4 py-1"
+      >
+        <span class="material-symbols-outlined">
+          dashboard
+        </span>
+
+        <span class="text-[9px] font-bold">
+          Dashboard
+        </span>
+      </button>
+
+      <button
+        id="nav-scan"
+        onclick="switchView('scan')"
+        class="flex flex-col items-center gap-1 text-slate-400 px-4 py-1"
+      >
+        <span class="material-symbols-outlined">
+          qr_code_scanner
+        </span>
+
+        <span class="text-[9px] font-bold">
+          Scan
+        </span>
+      </button>
+
+      <button
+        id="nav-history"
+        onclick="switchView('history')"
+        class="flex flex-col items-center gap-1 text-slate-400 px-4 py-1"
+      >
+        <span class="material-symbols-outlined">
+          history
+        </span>
+
+        <span class="text-[9px] font-bold">
+          History
+        </span>
+      </button>
+
+      <button
+        id="nav-settings"
+        onclick="switchView('settings')"
+        class="flex flex-col items-center gap-1 text-slate-400 px-4 py-1"
+      >
+        <span class="material-symbols-outlined">
+          settings
+        </span>
+
+        <span class="text-[9px] font-bold">
+          Settings
+        </span>
+      </button>
+
+    </div>
+  </nav>
+
+  <!-- TOAST -->
+  <div
+    id="toast"
+    class="fixed top-16 left-1/2 -translate-x-1/2 z-[110] opacity-0 pointer-events-none transition-opacity duration-300 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 rounded-xl shadow-xl text-xs font-bold max-w-[90%] text-center"
+  >
+    <span id="toast-msg">
+      Selesai
+    </span>
+  </div>
+
+<script>
+'use strict';
+
+/* =========================================================
+   CONFIG
+========================================================= */
+
+const STORAGE_KEY_GAS_URL = 'gudangai_gas_url';
+const STORAGE_KEY_THEME = 'gudangai_theme';
+
+let categoryChartInstance = null;
+let html5QrCode = null;
+let currentData = null;
+
+
+/* =========================================================
+   INITIALIZATION
+========================================================= */
+
+window.addEventListener('DOMContentLoaded', () => {
+
+  const savedUrl = localStorage.getItem(STORAGE_KEY_GAS_URL) || '';
+
+  document.getElementById('gas-url-input').value = savedUrl;
+
+  const savedTheme = localStorage.getItem(STORAGE_KEY_THEME);
+
+  if (savedTheme === 'light') {
+    document.documentElement.classList.remove('dark');
+  } else {
+    document.documentElement.classList.add('dark');
+  }
+
+  document.getElementById('theme-toggle').checked =
+    document.documentElement.classList.contains('dark');
+
+  updateConnectionLabel();
+
+  if (savedUrl) {
+    loadRealDataFromSheets();
+  } else {
+    switchView('settings');
+    showToast('Masukkan URL Google Apps Script terlebih dahulu');
+  }
+});
+
+
+/* =========================================================
+   GOOGLE APPS SCRIPT URL
+========================================================= */
+
+function getGasUrl() {
+
+  const url = localStorage.getItem(STORAGE_KEY_GAS_URL);
+
+  if (!url) {
+    throw new Error('URL Google Apps Script belum diatur.');
+  }
+
+  return url.trim().replace(/\/+$/, '');
+}
+
+
+function saveGasUrl() {
+
+  const input = document.getElementById('gas-url-input');
+  const url = input.value.trim();
+
+  if (!url) {
+    showToast('URL Google Apps Script wajib diisi');
+    return;
+  }
+
+  if (!url.startsWith('https://script.google.com/')) {
+    showToast('URL harus berasal dari Google Apps Script');
+    return;
+  }
+
+  if (!url.endsWith('/exec')) {
+    showToast('Gunakan URL deployment yang berakhiran /exec');
+    return;
+  }
+
+  localStorage.setItem(STORAGE_KEY_GAS_URL, url);
+
+  updateConnectionLabel();
+
+  showToast('URL disimpan. Menghubungkan...');
+
+  loadRealDataFromSheets();
+}
+
+
+function updateConnectionLabel() {
+
+  const label = document.getElementById('connection-label');
+
+  if (localStorage.getItem(STORAGE_KEY_GAS_URL)) {
+    label.textContent = 'Google Sheets terhubung';
+    label.className = 'text-[9px] text-emerald-500';
+  } else {
+    label.textContent = 'Belum terhubung';
+    label.className = 'text-[9px] text-slate-500';
+  }
+}
+
+
+/* =========================================================
+   API
+========================================================= */
+
+async function apiGet(action = 'dashboard') {
+
+  const url = getGasUrl();
+
+  const response = await fetch(
+    url + '?action=' + encodeURIComponent(action),
+    {
+      method: 'GET',
+      cache: 'no-store'
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error('HTTP ' + response.status);
+  }
+
+  return await response.json();
+}
+
+
+async function apiPost(payload) {
+
+  const url = getGasUrl();
+
+  const response = await fetch(
+    url,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(payload)
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error('HTTP ' + response.status);
+  }
+
+  return await response.json();
+}
+
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+
+async function loadRealDataFromSheets() {
+
+  showLoading(true, 'Mengambil data Google Sheets...');
+
+  try {
+
+    const result = await apiGet('dashboard');
+
+    if (!result || result.status !== 'success') {
+      throw new Error(
+        result && result.message
+          ? result.message
+          : 'API mengembalikan error'
+      );
+    }
+
+    currentData = result.data;
+
+    updateDashboardUI(result.data);
+    updateHistoryUI(result.data.history || []);
+
+    if (result.data.settings) {
+      updateFonnteStatus(result.data.settings);
+    }
+
+    updateConnectionLabel();
+
+    showToast('Data berhasil disinkronkan');
+
+  } catch (error) {
+
+    console.error(error);
+
+    updateConnectionLabel();
+
+    showToast(
+      'Gagal terhubung: ' + error.message
+    );
+
+  } finally {
+
+    showLoading(false);
+  }
+}
+
+
+function updateDashboardUI(data) {
+
+  const totalValue =
+    Number(data.totalInventoryValue || 0);
+
+  const balance =
+    Number(data.balance || 0);
+
+  const totalUnits =
+    Number(data.totalUnits || 0);
+
+  const critical =
+    Number(data.criticalStock || 0);
+
+  const income =
+    Number(data.totalIncome || 0);
+
+  const expense =
+    Number(data.totalExpense || 0);
+
+  document.getElementById('dash-total-value').textContent =
+    formatRupiah(totalValue);
+
+  document.getElementById('dash-balance').textContent =
+    'Saldo ' + formatRupiah(balance);
+
+  document.getElementById('dash-in-stock').textContent =
+    totalUnits.toLocaleString('id-ID');
+
+  document.getElementById('dash-critical-stock').textContent =
+    critical.toLocaleString('id-ID');
+
+  document.getElementById('dash-income').textContent =
+    formatRupiah(income);
+
+  document.getElementById('dash-expense').textContent =
+    formatRupiah(expense);
+
+  const categories =
+    data.categories || {};
+
+  const labels =
+    Object.keys(categories);
+
+  const values =
+    Object.values(categories);
+
+  document.getElementById('dash-cat-count').textContent =
+    labels.length.toString();
+
+  renderCategoryChart(labels, values);
+}
+
+
+function renderCategoryChart(labels, values) {
+
+  const canvas =
+    document.getElementById('categoryChart');
+
+  if (!canvas) return;
+
+  const ctx =
+    canvas.getContext('2d');
+
+  if (categoryChartInstance) {
+    categoryChartInstance.destroy();
+    categoryChartInstance = null;
+  }
+
+  if (!labels.length) {
+    labels = ['Belum ada data'];
+    values = [1];
+  }
+
+  categoryChartInstance =
+    new Chart(
+      ctx,
+      {
+        type: 'doughnut',
+
+        data: {
+          labels,
+          datasets: [
+            {
+              data: values,
+
+              backgroundColor: [
+                '#10B981',
+                '#3B82F6',
+                '#F59E0B',
+                '#EF4444',
+                '#8B5CF6',
+                '#06B6D4',
+                '#F97316',
+                '#64748B'
+              ],
+
+              borderWidth: 0
+            }
+          ]
+        },
+
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+
+          cutout: '72%'
+        }
+      }
+    );
+}
+
+
+/* =========================================================
+   HISTORY
+========================================================= */
+
+function updateHistoryUI(historyList) {
+
+  const container =
+    document.getElementById('history-container');
+
+  container.innerHTML = '';
+
+  if (!historyList.length) {
+
+    container.innerHTML = `
+      <div class="p-6 text-center text-xs text-slate-500">
+        Belum ada transaksi.
+      </div>
+    `;
+
+    return;
+  }
+
+  historyList.forEach(item => {
+
+    const type =
+      String(item.type || '').toUpperCase();
+
+    const isIncome =
+      type === 'PEMASUKAN';
+
+    const isExpense =
+      type === 'PENGELUARAN';
+
+    let rowClass =
+      'bg-white dark:bg-[#111C44]';
+
+    let amountClass =
+      'text-slate-600 dark:text-slate-300';
+
+    let icon =
+      'receipt_long';
+
+    if (isIncome) {
+      rowClass =
+        'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900';
+
+      amountClass =
+        'text-emerald-600 dark:text-emerald-400';
+
+      icon =
+        'trending_up';
+    }
+
+    if (isExpense) {
+      rowClass =
+        'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900';
+
+      amountClass =
+        'text-red-600 dark:text-red-400';
+
+      icon =
+        'trending_down';
+    }
+
+    container.innerHTML += `
+      <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 ${rowClass}">
+        <div class="flex items-center justify-between gap-3">
+
+          <div class="flex items-center gap-3 min-w-0">
+
+            <div class="p-2 rounded-xl bg-white/70 dark:bg-slate-900/50">
+              <span class="material-symbols-outlined ${amountClass}">
+                ${icon}
+              </span>
+            </div>
+
+            <div class="min-w-0">
+              <h4 class="text-xs font-bold truncate">
+                ${escapeHtml(item.title || 'Transaksi')}
+              </h4>
+
+              <p class="text-[10px] text-slate-500 mt-1 truncate">
+                ${escapeHtml(item.description || '')}
+              </p>
+
+              <p class="text-[9px] text-slate-400 mt-1">
+                ${escapeHtml(item.timestamp || '')}
+              </p>
+            </div>
+
+          </div>
+
+          <div class="text-right shrink-0">
+
+            <p class="text-xs font-extrabold ${amountClass}">
+              ${escapeHtml(item.amountFormatted || formatRupiah(item.amount || 0))}
+            </p>
+
+            <p class="text-[9px] uppercase font-bold ${amountClass} mt-1">
+              ${escapeHtml(type)}
+            </p>
+
+          </div>
+
+        </div>
+      </div>
+    `;
+  });
+}
+
+
+/* =========================================================
+   MANUAL ADD
+========================================================= */
+
+async function handleManualSubmit(event) {
+
+  event.preventDefault();
+
+  const payload = {
+
+    action: 'MANUAL_ADD',
+
+    name:
+      document.getElementById('manual-name').value.trim(),
+
+    sku:
+      document.getElementById('manual-sku').value.trim(),
+
+    category:
+      document.getElementById('manual-cat').value.trim(),
+
+    qty:
+      Number(document.getElementById('manual-qty').value),
+
+    price:
+      Number(document.getElementById('manual-price').value),
+
+    minStock:
+      Number(document.getElementById('manual-min-stock').value)
+
+  };
+
+  if (!payload.name) {
+    showToast('Nama barang wajib diisi');
+    return;
+  }
+
+  if (payload.qty < 1) {
+    showToast('Jumlah barang tidak valid');
+    return;
+  }
+
+  showLoading(true, 'Menyimpan barang...');
+
+  try {
+
+    const result =
+      await apiPost(payload);
+
+    if (!result || result.status !== 'success') {
+      throw new Error(
+        result && result.message
+          ? result.message
+          : 'Gagal menyimpan'
+      );
+    }
+
+    showToast('Barang berhasil ditambahkan');
+
+    document.getElementById('manual-name').value = '';
+    document.getElementById('manual-sku').value = '';
+    document.getElementById('manual-cat').value = '';
+    document.getElementById('manual-qty').value = '1';
+    document.getElementById('manual-price').value = '0';
+    document.getElementById('manual-min-stock').value = '5';
+
+    switchView('dashboard');
+
+    await loadRealDataFromSheets();
+
+  } catch (error) {
+
+    console.error(error);
+
+    showToast(
+      'Gagal menyimpan: ' + error.message
+    );
+
+  } finally {
+
+    showLoading(false);
+  }
+}
+
+
+/* =========================================================
+   BARCODE
+========================================================= */
+
+async function startBarcodeScanner() {
+
+  const placeholder =
+    document.getElementById('camera-placeholder');
+
+  try {
+
+    if (!html5QrCode) {
+      html5QrCode =
+        new Html5Qrcode('barcode-reader');
+    }
+
+    placeholder.classList.add('hidden');
+
+    await html5QrCode.start(
+      {
+        facingMode: 'environment'
+      },
+
+      {
+        fps: 10,
+
+        qrbox: {
+          width: 240,
+          height: 160
+        }
+      },
+
+      onBarcodeScanSuccess,
+
+      function () {}
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+    placeholder.classList.remove('hidden');
+
+    showToast(
+      'Kamera tidak dapat digunakan. Periksa izin kamera.'
+    );
+  }
+}
+
+
+async function stopBarcodeScanner() {
+
+  if (
+    html5QrCode &&
+    html5QrCode.isScanning
+  ) {
+
+    try {
+      await html5QrCode.stop();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  const placeholder =
+    document.getElementById('camera-placeholder');
+
+  if (placeholder) {
+    placeholder.classList.remove('hidden');
+  }
+}
+
+
+async function onBarcodeScanSuccess(decodedText) {
+
+  await stopBarcodeScanner();
+
+  showLoading(true, 'Memproses barcode...');
+
+  try {
+
+    const result =
+      await apiPost(
+        {
+          action: 'BARCODE_SCAN',
+          sku: decodedText
+        }
+      );
+
+    if (!result || result.status !== 'success') {
+      throw new Error(
+        result && result.message
+          ? result.message
+          : 'Barcode gagal diproses'
+      );
+    }
+
+    showToast(
+      result.message || 'Barcode berhasil diproses'
+    );
+
+    await loadRealDataFromSheets();
+
+    switchView('dashboard');
+
+  } catch (error) {
+
+    showToast(
+      'Barcode: ' + error.message
+    );
+
+  } finally {
+
+    showLoading(false);
+  }
+}
+
+
+/* =========================================================
+   OCR
+========================================================= */
+
+async function processOCRReceipt(event) {
+
+  const file =
+    event.target.files[0];
+
+  if (!file) return;
+
+  await stopBarcodeScanner();
+
+  const overlay =
+    document.getElementById('ocr-overlay');
+
+  const status =
+    document.getElementById('ocr-status-text');
+
+  overlay.classList.remove('hidden');
+
+  try {
+
+    status.textContent =
+      'Membaca teks struk...';
+
+    const worker =
+      await Tesseract.createWorker('eng');
+
+    const result =
+      await worker.recognize(file);
+
+    await worker.terminate();
+
+    const text =
+      result.data.text || '';
+
+    status.textContent =
+      'Mencari total transaksi...';
+
+    const nominal =
+      extractNominal(text);
+
+    overlay.classList.add('hidden');
+
+    if (nominal <= 0) {
+
+      alert(
+        'Nominal tidak ditemukan otomatis.\n\nTeks OCR:\n\n' +
+        text
+      );
+
+      return;
+    }
+
+    const confirmSave =
+      confirm(
+        'Nominal terdeteksi:\n\n' +
+        formatRupiah(nominal) +
+        '\n\nSimpan sebagai pengeluaran?'
+      );
+
+    if (!confirmSave) return;
+
+    showLoading(true, 'Menyimpan pengeluaran...');
+
+    const resultPost =
+      await apiPost(
+        {
+          action: 'OCR_EXPENSE',
+          nominal,
+          note: 'Pengeluaran Struk OCR'
+        }
+      );
+
+    if (
+      !resultPost ||
+      resultPost.status !== 'success'
+    ) {
+      throw new Error(
+        resultPost && resultPost.message
+          ? resultPost.message
+          : 'Gagal menyimpan pengeluaran'
+      );
+    }
+
+    showToast('Pengeluaran berhasil dicatat');
+
+    await loadRealDataFromSheets();
+
+    switchView('dashboard');
+
+  } catch (error) {
+
+    console.error(error);
+
+    overlay.classList.add('hidden');
+
+    showToast(
+      'OCR gagal: ' + error.message
+    );
+
+  } finally {
+
+    document.getElementById('ocr-file-input').value = '';
+
+    showLoading(false);
+  }
+}
+
+
+function extractNominal(text) {
+
+  const lines =
+    text
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(Boolean);
+
+  const candidates = [];
+
+  for (const line of lines) {
+
+    if (
+      /total|grand total|jumlah|amount|bayar|dibayar|tagihan/i
+        .test(line)
+    ) {
+
+      const matches =
+        line.match(
+          /(?:rp\.?\s*)?([0-9][0-9.,]*)/gi
+        );
+
+      if (matches) {
+
+        matches.forEach(value => {
+
+          const numeric =
+            parseInt(
+              value.replace(/[^0-9]/g, ''),
+              10
+            );
+
+          if (
+            Number.isFinite(numeric) &&
+            numeric >= 1000
+          ) {
+            candidates.push(numeric);
+          }
+
+        });
+      }
+    }
+  }
+
+  if (candidates.length) {
+    return Math.max(...candidates);
+  }
+
+  return 0;
+}
+
+
+/* =========================================================
+   FONNTE
+========================================================= */
+
+function updateFonnteStatus(settings) {
+
+  const el =
+    document.getElementById('fonnte-status');
+
+  const enabled =
+    String(settings.FONNTE_ENABLED || '')
+      .toUpperCase() === 'TRUE';
+
+  if (enabled) {
+
+    el.textContent = 'Aktif';
+
+    el.className =
+      'text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700';
+
+  } else {
+
+    el.textContent = 'Tidak aktif';
+
+    el.className =
+      'text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-500';
+  }
+}
+
+
+async function testFonnte() {
+
+  showLoading(true, 'Mengirim pesan WhatsApp...');
+
+  try {
+
+    const result =
+      await apiPost(
+        {
+          action: 'TEST_FONNTE'
+        }
+      );
+
+    if (
+      !result ||
+      result.status !== 'success'
+    ) {
+      throw new Error(
+        result && result.message
+          ? result.message
+          : 'Test Fonnte gagal'
+      );
+    }
+
+    showToast(
+      result.message || 'Pesan test dikirim'
+    );
+
+    await loadRealDataFromSheets();
+
+  } catch (error) {
+
+    console.error(error);
+
+    showToast(
+      'Fonnte: ' + error.message
+    );
+
+  } finally {
+
+    showLoading(false);
+  }
+}
+
+
+/* =========================================================
+   CONNECTION TEST
+========================================================= */
+
+async function testConnection() {
+
+  showLoading(true, 'Menguji koneksi...');
+
+  try {
+
+    const result =
+      await apiGet('ping');
+
+    if (
+      !result ||
+      result.status !== 'success'
+    ) {
+      throw new Error(
+        result && result.message
+          ? result.message
+          : 'Koneksi gagal'
+      );
+    }
+
+    showToast(
+      'Koneksi Google Sheets berhasil'
+    );
+
+    await loadRealDataFromSheets();
+
+  } catch (error) {
+
+    showToast(
+      'Koneksi gagal: ' + error.message
+    );
+
+  } finally {
+
+    showLoading(false);
+  }
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+function switchView(viewName) {
+
+  if (viewName !== 'scan') {
+    stopBarcodeScanner();
+  }
+
+  const views =
+    [
+      'dashboard',
+      'scan',
+      'manual',
+      'history',
+      'settings'
+    ];
+
+  views.forEach(view => {
+
+    const element =
+      document.getElementById('view-' + view);
+
+    if (element) {
+      element.classList.add('hidden');
+    }
+  });
+
+  const active =
+    document.getElementById(
+      'view-' + viewName
+    );
+
+  if (active) {
+    active.classList.remove('hidden');
+  }
+
+  const navs =
+    [
+      'dashboard',
+      'scan',
+      'history',
+      'settings'
+    ];
+
+  navs.forEach(nav => {
+
+    const button =
+      document.getElementById('nav-' + nav);
+
+    if (!button) return;
+
+    button.classList.remove(
+      'text-emerald-500'
+    );
+
+    button.classList.add(
+      'text-slate-400'
+    );
+  });
+
+  const activeNav =
+    document.getElementById(
+      'nav-' + viewName
+    );
+
+  if (activeNav) {
+
+    activeNav.classList.remove(
+      'text-slate-400'
+    );
+
+    activeNav.classList.add(
+      'text-emerald-500'
+    );
+  }
+
+  window.scrollTo(0, 0);
+}
+
+
+/* =========================================================
+   THEME
+========================================================= */
+
+function toggleDarkMode() {
+
+  const html =
+    document.documentElement;
+
+  const isDark =
+    html.classList.toggle('dark');
+
+  document.getElementById('theme-toggle').checked =
+    isDark;
+
+  localStorage.setItem(
+    STORAGE_KEY_THEME,
+    isDark ? 'dark' : 'light'
+  );
+}
+
+
+/* =========================================================
+   UI HELPERS
+========================================================= */
+
+function showLoading(show, text = 'Memproses...') {
+
+  const overlay =
+    document.getElementById('loading-overlay');
+
+  const loadingText =
+    document.getElementById('loading-text');
+
+  loadingText.textContent = text;
+
+  overlay.classList.toggle(
+    'hidden',
+    !show
+  );
+
+  overlay.classList.toggle(
+    'flex',
+    show
+  );
+}
+
+
+function showToast(message) {
+
+  const toast =
+    document.getElementById('toast');
+
+  document.getElementById('toast-msg').textContent =
+    message;
+
+  toast.classList.remove(
+    'opacity-0',
+    'pointer-events-none'
+  );
+
+  clearTimeout(
+    window.__toastTimer
+  );
+
+  window.__toastTimer =
+    setTimeout(
+      () => {
+
+        toast.classList.add(
+          'opacity-0',
+          'pointer-events-none'
+        );
+
+      },
+      3000
+    );
+}
+
+
+function formatRupiah(value) {
+
+  const number =
+    Number(value) || 0;
+
+  return (
+    'Rp ' +
+    number.toLocaleString(
+      'id-ID'
+    )
+  );
+}
+
+
+function escapeHtml(value) {
+
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+</script>
+
+</body>
+</html>
