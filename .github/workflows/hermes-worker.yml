@@ -5,6 +5,12 @@ on:
     # Run every 6 hours
     - cron: '0 */6 * * *'
   workflow_dispatch:
+    inputs:
+      enable_ssh:
+        description: 'Buka Remote SSH (tmate) untuk setup/debugging manual via Termux'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -49,13 +55,18 @@ jobs:
             ls -la ./hermes-data || true
           fi
 
+      - name: Interactive Remote Terminal (SSH / tmate)
+        if: ${{ inputs.enable_ssh == true }}
+        uses: mxschmitt/action-tmate@v3
+        with:
+          detached: false
+
       - name: Run Hermes Agent Worker
         env:
           HERMES_DATA_PATH: ./hermes-data
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Starting Hermes agent worker process..."
-          # Replace the command below with your actual command to launch your Hermes agent
           if [ -f "main.py" ]; then
             python main.py
           elif [ -f "index.js" ]; then
